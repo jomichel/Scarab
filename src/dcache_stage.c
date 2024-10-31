@@ -33,6 +33,7 @@
 #include "globals/global_types.h"
 #include "globals/global_vars.h"
 #include "globals/utils.h"
+#include "dcache_stage_log.h"
 
 #include "bp/bp.h"
 #include "dcache_stage.h"
@@ -62,7 +63,7 @@
 /* Global Variables */
 
 Dcache_Stage* dc = NULL;
-
+CCacheState logState = NULL;
 /**************************************************************************************/
 /* set_dcache_stage: */
 
@@ -596,7 +597,7 @@ Flag dcache_fill_line(Mem_Req* req) {
   Op*          op;
   Op**         op_p  = (Op**)list_start_head_traversal(&req->op_ptrs);
   Counter* op_unique = (Counter*)list_start_head_traversal(&req->op_uniques);
-
+ 
   set_dcache_stage(&cmp_model.dcache_stage[req->proc_id]);
   Counter old_cycle_count = cycle_count;  // FIXME HACK!
   cycle_count             = freq_cycle_count(FREQ_DOMAIN_CORES[req->proc_id]);
@@ -622,10 +623,7 @@ Flag dcache_fill_line(Mem_Req* req) {
           req->off_path, hexstr64s(req->addr), (int)req->addr,
           (int)(req->addr >> LOG2(DCACHE_LINE_SIZE)), req->op_count,
           (req->op_count ? req->oldest_op_unique_num : -1));
-
-    data = (Dcache_Data*)cache_insert(&dc->pref_dcache, dc->proc_id, req->addr,
-                                      &line_addr, &repl_line_addr);
-    ASSERT(dc->proc_id, req->emitted_cycle);
+    
     ASSERT(dc->proc_id, cycle_count >= req->emitted_cycle);
     // mark the data as HW_prefetch if prefetch mark it as
     // fetched_by_offpath if off_path this is done downstairs
@@ -674,9 +672,32 @@ Flag dcache_fill_line(Mem_Req* req) {
       STAT_EVENT(dc->proc_id, DCACHE_WB_REQ_DIRTY);
       STAT_EVENT(dc->proc_id, DCACHE_WB_REQ);
     }
+    if (logState == NULL) {
+      logState = (CCacheState) malloc(sizeof(CCacheState));
+      dcacheLogInit(logState);
+     }
+ 
+           STAT_EVENT(dc->proc_id, DCACHE_PROBE);
 
     data = (Dcache_Data*)cache_insert(&dc->dcache, dc->proc_id, req->addr,
                                       &line_addr, &repl_line_addr);
+                                       EvictType result;
+                                      if (data != NULL) {
+                                       result =  dcacheLogInsert(logState, req->addr, line_addr, repl_line_addr,dc->dcache.num_lines);
+                                      }
+    switch (result) {
+      case CAPACITY:
+        STAT_EVENT(dc->proc_id, DCACHE_CAPACITY_MISS);
+        break;
+      case CONFLICT:
+        STAT_EVENT(dc->proc_id, DCACHE_CONFLICT_MISS);
+        break;
+      case COMPULSORY:
+        STAT_EVENT(dc->proc_id, DCACHE_COMPULSORY_MISS);
+        break;
+      default:
+        break;       
+    }
     DEBUG(dc->proc_id,
           "Filling dcache  off_path:%d addr:0x%s  :%7d index:%7d op_count:%d "
           "oldest:%lld\n",
