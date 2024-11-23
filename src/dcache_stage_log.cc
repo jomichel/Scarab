@@ -7,8 +7,8 @@
 enum class EvictionType { NOT_EVICTED, CAPACITY, CONFLICT };
 class DcacheLog {
  private:
-  std::unordered_map<uint64_t, EvictionType>  gcacheMetadata;
-  std::unordered_map<uint64_t, EvictionType>     cacheMetadata;
+  std::unordered_map<uint64_t, EvictionType> gcacheMetadata;
+  std::unordered_map<uint64_t, EvictionType> cacheMetadata;
   uint64_t                                   cacheSize;
   uint64_t                                   ourCacheSize        = 0;
   uint64_t                                   totalEvictions      = 0;
@@ -34,85 +34,101 @@ class DcacheLog {
    * @param cacheLine The cache location we are trying to put it in
    * This function should only be called when a miss occurs
    */
-  EvictType cacheInsert(uint64_t address, uint64_t cacheLine, uint64_t cacheLine2,
-                        uint64_t cacheSize);
+  EvictType cacheInsert(uint64_t address, uint64_t cacheLine,
+                        uint64_t cacheLine2, uint64_t cacheSize);
+  EvictType evictCacheLine(uint64_t cacheLine, uint64_t cacheSize);
 };
 
-typedef struct CCacheStateOBJ
-{
+typedef struct CCacheStateOBJ {
   DcacheLog* dcacheLog;
-}CCacheStateOBJ;
+} CCacheStateOBJ;
 
-EvictType DcacheLog::cacheInsert(uint64_t address, uint64_t cacheLine, uint64_t cacheLine2,
-                                 uint64_t cacheSize) {
+EvictType DcacheLog::evictCacheLine(uint64_t cacheLine, uint64_t cacheSize) {
+  auto cacheIt = cacheMetadata.find(cacheLine);
+  if(cacheIt == cacheMetadata.end()) {
+    std::cout << "cache line " << cacheLine << " is not occupied" << std::endl;
+    return NO_EVICTION;
+  }
+
+  EvictionType evictionType;
+  if(cacheMetadata.size() >= cacheSize) {
+    evictionType = EvictionType::CAPACITY;
+  } else {
+    evictionType = EvictionType::CONFLICT;
+  }
+
+  gcacheMetadata[cacheLine] = evictionType;
+  totalEvictions++;
+  cacheMetadata.erase(cacheIt);
+
+  return NO_EVICTION;
+}
+
+EvictType DcacheLog::cacheInsert(uint64_t address, uint64_t cacheLine,
+                                 uint64_t cacheLine2, uint64_t cacheSize) {
+
   EvictType result = NO_EVICTION;
+  
   auto      it     = gcacheMetadata.find(cacheLine);
+
   std::cout << "cache line: " << cacheLine << std::endl;
-  std:: cout << "cache line2: " << cacheLine2 << std::endl;
+  std::cout << "cache line2: " << cacheLine2 << std::endl;
+
+  // Check existing cache line status
   if(it != gcacheMetadata.end()) {
     switch(it->second) {
       case EvictionType::NOT_EVICTED:
-        assert(false);
-        break;
+        std::cout << "not evicted dupe" << std::endl;
+        return NO_EVICTION;
       case EvictionType::CAPACITY:
         ++capacityEvictions;
-        result = EvictType::CAPACITY;
+        result = CAPACITY;
         break;
       case EvictionType::CONFLICT:
         ++conflictEvictions;
-        result = EvictType::CONFLICT;
+        result = CONFLICT;
         break;
     }
     ++totalEvictions;
   } else {
     ++compulsoryEvictions;
-    result = EvictType::COMPULSORY;
+    result = COMPULSORY;
   }
- // std::cout << "checking if cache line is already occupied..." << std::endl;
-  auto cacheIt = cacheMetadata.find(cacheLine2);
-  if(cacheIt != cacheMetadata.end()) {
-    // Cache line is occupied, get the address currently in that cache line
-  
-    assert(cacheMetadata.size() <= cacheSize);
-    if(cacheMetadata.size() == cacheSize) {
-      cacheMetadata[cacheLine2] = EvictionType::CAPACITY;
-      gcacheMetadata[cacheLine2] = EvictionType::CAPACITY;
 
-    } else {
-      cacheMetadata[cacheLine2] = EvictionType::CONFLICT;
-        gcacheMetadata[cacheLine2] = EvictionType::CONFLICT;
+  std::cout << "size of cacheMetadata: " << cacheMetadata.size() << std::endl;
 
-    }
-
-    totalEvictions++;
-    cacheMetadata.erase(cacheIt);
-  }else{
-    if (cacheLine2 != 0 ){
-    assert(false);
-    }
-  }
+  // Handle eviction if needed
+ 
+  // Insert new cache line if not 
   gcacheMetadata[cacheLine] = EvictionType::NOT_EVICTED;
-  cacheMetadata[cacheLine] = EvictionType::NOT_EVICTED;
-   
+  cacheMetadata[cacheLine]  = EvictionType::NOT_EVICTED;
+
+  std::cout << "size of cacheMetadata2: " << cacheMetadata.size() << std::endl;
   return result;
 }
 
-void dcacheLogInit(CCacheState  state) {
-    std::cout << "Dcache log" << std::endl;
+void dcacheLogInit(CCacheState state) {
+  std::cout << "Dcache log" << std::endl;
 
   state->dcacheLog = new DcacheLog();
   std::cout << "Dcache log initialized" << std::endl;
 }
-EvictType dcacheLogInsert(CCacheState  state, uint64_t address,
-                                     uint64_t cacheLine, uint64_t cacheSize);
-char*     dcacheLogGetEvictionsString(CCacheState  state);
+EvictType dcacheLogInsert(CCacheState state, uint64_t address,
+                          uint64_t cacheLine, uint64_t cacheSize);
+char*     dcacheLogGetEvictionsString(CCacheState state);
 
-EvictType dcacheLogInsert(CCacheState  state, uint64_t address,
-                                     uint64_t cacheLine,uint64_t cacheLine2, uint64_t cacheSize) {
-  return state->dcacheLog->cacheInsert(address, cacheLine,cacheLine2, cacheSize);
+EvictType dcacheLogInsert(CCacheState state, uint64_t address,
+                          uint64_t cacheLine, uint64_t cacheLine2,
+                          uint64_t cacheSize) {
+  return state->dcacheLog->cacheInsert(address, cacheLine, cacheLine2,
+                                       cacheSize);
 }
 
-char* dcacheLogGetEvictionsString(CCacheState  state) {
+void dcacheLogEvictCacheLine(CCacheState state, uint64_t cacheLine,
+                             uint64_t cacheSize) {
+  state->dcacheLog->evictCacheLine(cacheLine, cacheSize);
+}
+char* dcacheLogGetEvictionsString(CCacheState state) {
   char* evictions = (char*)malloc(100);
   sprintf(evictions,
           "Capacity Evictions: %ld\nConflict Evictions: %ld\nCompulsory "
@@ -123,7 +139,7 @@ char* dcacheLogGetEvictionsString(CCacheState  state) {
   return evictions;
 }
 
-uint64_t* dcacheLogGetEvictions(CCacheState  state) {
+uint64_t* dcacheLogGetEvictions(CCacheState state) {
   uint64_t* evictions = (uint64_t*)malloc(3 * sizeof(uint64_t));
   evictions[0]        = state->dcacheLog->getCapacityEvictions();
   evictions[1]        = state->dcacheLog->getConflictEvictions();

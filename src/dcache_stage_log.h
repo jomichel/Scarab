@@ -18,7 +18,7 @@ typedef enum  {
 typedef struct CCacheStateOBJ *CCacheState;
 void dcacheLogInit(CCacheState state);
 EvictType dcacheLogInsert(CCacheState state, uint64_t address, uint64_t cacheLine, uint64_t cacheLine2,uint64_t cacheSize);
-
+void dcacheLogEvictCacheLine(CCacheState  state, uint64_t cacheLine, uint64_t cacheSize);
 uint64_t * dcacheLogGetEvictions(CCacheState state); 
  char * dcacheLogGetEvictionsString(CCacheState state);
  

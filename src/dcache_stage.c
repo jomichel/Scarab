@@ -26,6 +26,7 @@
  * Description  :
  ***************************************************************************************/
 
+#include "dcache_stage_log.h"
 #include "debug/debug_macros.h"
 #include "debug/debug_print.h"
 #include "globals/assert.h"
@@ -33,7 +34,6 @@
 #include "globals/global_types.h"
 #include "globals/global_vars.h"
 #include "globals/utils.h"
-#include "dcache_stage_log.h"
 
 #include "bp/bp.h"
 #include "dcache_stage.h"
@@ -62,8 +62,8 @@
 /**************************************************************************************/
 /* Global Variables */
 
-Dcache_Stage* dc = NULL;
-CCacheState logState = NULL;
+Dcache_Stage* dc       = NULL;
+CCacheState   logState = NULL;
 /**************************************************************************************/
 /* set_dcache_stage: */
 
@@ -368,6 +368,8 @@ void update_dcache_stage(Stage_Data* src_sd) {
         wake_up_ops(op, REG_DATA_DEP, model->wake_hook);
       }
     } else {  // data cache miss
+
+
       if(op->table_info->mem_type == MEM_ST)
         STAT_EVENT(op->proc_id, POWER_DCACHE_WRITE_MISS);
       else
@@ -378,9 +380,9 @@ void update_dcache_stage(Stage_Data* src_sd) {
 
       if(op->table_info->mem_type == MEM_LD) {  // load request
         if(((model->mem == MODEL_MEM) &&
-            scan_stores(
-              op->oracle_info.va,
-              op->oracle_info.mem_size))) {  // scan the store forwarding buffer
+            scan_stores(op->oracle_info.va,
+                        op->oracle_info.mem_size))) {  // scan the store
+                                                       // forwarding buffer
           if(!op->off_path) {
             STAT_EVENT(op->proc_id, DCACHE_ST_BUFFER_HIT);
             STAT_EVENT(op->proc_id, DCACHE_ST_BUFFER_HIT_ONPATH);
@@ -427,6 +429,39 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
+            printf("1\n");
+            if(logState == NULL) {
+              logState = (CCacheState)malloc(sizeof(CCacheState));
+              dcacheLogInit(logState);
+            }
+            if(!line) {  // line is NULL on cache miss
+              uns64 repl_line_addr;
+              // Get replacement line address using get_next_repl_line
+              Flag repl_line_valid;
+              printf("DCACHE MISS\n");
+              void* data = get_next_repl_line(&dc->dcache, dc->proc_id,
+                                              line_addr, &repl_line_addr,
+                                              &repl_line_valid);
+              (void)data;
+              EvictType result;
+              printf("DCACHE MI1SS\n");
+
+              result = dcacheLogInsert(logState, 0, line_addr, repl_line_addr,
+                                       dc->dcache.num_lines);
+              switch(result) {
+                case CAPACITY:
+                  STAT_EVENT(dc->proc_id, DCACHE_CAPACITY_MISS);
+                  break;
+                case CONFLICT:
+                  STAT_EVENT(dc->proc_id, DCACHE_CONFLICT_MISS);
+                  break;
+                case COMPULSORY:
+                  STAT_EVENT(dc->proc_id, DCACHE_COMPULSORY_MISS);
+                  break;
+                default:
+                  break;
+              }
+            }
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_LD_ONPATH);
@@ -482,6 +517,41 @@ void update_dcache_stage(Stage_Data* src_sd) {
           }
 
           if(!op->off_path) {
+                        printf("2\n");
+
+            if(logState == NULL) {
+              logState = (CCacheState)malloc(sizeof(CCacheState));
+              dcacheLogInit(logState);
+            }
+            if(!line) {  // line is NULL on cache miss
+              uns64 repl_line_addr;
+              // Get replacement line address using get_next_repl_line
+              Flag repl_line_valid;
+              printf("DCACHE MISS\n");
+              void* data = get_next_repl_line(&dc->dcache, dc->proc_id,
+                                              line_addr, &repl_line_addr,
+                                              &repl_line_valid);
+              (void)data;
+              EvictType result;
+              printf("DCACHE MI1SS\n");
+
+              result = dcacheLogInsert(logState, 0, line_addr, repl_line_addr,
+                                       dc->dcache.num_lines);
+              switch(result) {
+                case CAPACITY:
+                  STAT_EVENT(dc->proc_id, DCACHE_CAPACITY_MISS);
+                  break;
+                case CONFLICT:
+                  STAT_EVENT(dc->proc_id, DCACHE_CONFLICT_MISS);
+                  break;
+                case COMPULSORY:
+                  STAT_EVENT(dc->proc_id, DCACHE_COMPULSORY_MISS);
+                  break;
+                default:
+                  break;
+              }
+            }
+            
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_LD_ONPATH);
@@ -539,7 +609,40 @@ void update_dcache_stage(Stage_Data* src_sd) {
               STAT_EVENT_ALL(ONE_MORE_DISCARDED_L0CACHE);
           }
 
-          if(!op->off_path) {
+          if(!op->off_path) {            printf("3\n");
+
+            if(logState == NULL) {
+              logState = (CCacheState)malloc(sizeof(CCacheState));
+              dcacheLogInit(logState);
+            }
+            if(!line) {  // line is NULL on cache miss
+              uns64 repl_line_addr;
+              // Get replacement line address using get_next_repl_line
+              Flag repl_line_valid;
+              printf("DCACHE MISS\n");
+              void* data = get_next_repl_line(&dc->dcache, dc->proc_id,
+                                              line_addr, &repl_line_addr,
+                                              &repl_line_valid);
+              (void)data;
+              EvictType result;
+              printf("DCACHE MI1SS\n");
+
+              result = dcacheLogInsert(logState, 0, line_addr, repl_line_addr,
+                                       dc->dcache.num_lines);
+              switch(result) {
+                case CAPACITY:
+                  STAT_EVENT(dc->proc_id, DCACHE_CAPACITY_MISS);
+                  break;
+                case CONFLICT:
+                  STAT_EVENT(dc->proc_id, DCACHE_CONFLICT_MISS);
+                  break;
+                case COMPULSORY:
+                  STAT_EVENT(dc->proc_id, DCACHE_COMPULSORY_MISS);
+                  break;
+                default:
+                  break;
+              }
+            }
             STAT_EVENT(op->proc_id, DCACHE_MISS);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ONPATH);
             STAT_EVENT(op->proc_id, DCACHE_MISS_ST_ONPATH);
@@ -597,7 +700,7 @@ Flag dcache_fill_line(Mem_Req* req) {
   Op*          op;
   Op**         op_p  = (Op**)list_start_head_traversal(&req->op_ptrs);
   Counter* op_unique = (Counter*)list_start_head_traversal(&req->op_uniques);
- 
+
   set_dcache_stage(&cmp_model.dcache_stage[req->proc_id]);
   Counter old_cycle_count = cycle_count;  // FIXME HACK!
   cycle_count             = freq_cycle_count(FREQ_DOMAIN_CORES[req->proc_id]);
@@ -609,7 +712,8 @@ Flag dcache_fill_line(Mem_Req* req) {
   /* if it can't get a write port, fail */
   if(!get_write_port(&dc->ports[bank])) {
     cycle_count = old_cycle_count;
-    STAT_EVENT(dc->proc_id, DCACHE_FILL_PORT_UNAVAILABLE_ONPATH + req->off_path);
+    STAT_EVENT(dc->proc_id,
+               DCACHE_FILL_PORT_UNAVAILABLE_ONPATH + req->off_path);
     return FAILURE;
   }
 
@@ -623,7 +727,7 @@ Flag dcache_fill_line(Mem_Req* req) {
           req->off_path, hexstr64s(req->addr), (int)req->addr,
           (int)(req->addr >> LOG2(DCACHE_LINE_SIZE)), req->op_count,
           (req->op_count ? req->oldest_op_unique_num : -1));
-    
+
     ASSERT(dc->proc_id, cycle_count >= req->emitted_cycle);
     // mark the data as HW_prefetch if prefetch mark it as
     // fetched_by_offpath if off_path this is done downstairs
@@ -672,32 +776,17 @@ Flag dcache_fill_line(Mem_Req* req) {
       STAT_EVENT(dc->proc_id, DCACHE_WB_REQ_DIRTY);
       STAT_EVENT(dc->proc_id, DCACHE_WB_REQ);
     }
-    if (logState == NULL) {
-      logState = (CCacheState) malloc(sizeof(CCacheState));
+    if(logState == NULL) {
+      logState = (CCacheState)malloc(sizeof(CCacheState));
       dcacheLogInit(logState);
-     }
+    }
+    dcacheLogEvictCacheLine(logState, repl_line_addr, dc->dcache.num_lines);
  
-           STAT_EVENT(dc->proc_id, DCACHE_PROBE);
+    STAT_EVENT(dc->proc_id, DCACHE_PROBE);
 
     data = (Dcache_Data*)cache_insert(&dc->dcache, dc->proc_id, req->addr,
                                       &line_addr, &repl_line_addr);
-                                       EvictType result;
-                                      if (data != NULL) {
-                                       result =  dcacheLogInsert(logState, req->addr, line_addr, repl_line_addr,dc->dcache.num_lines);
-                                      }
-    switch (result) {
-      case CAPACITY:
-        STAT_EVENT(dc->proc_id, DCACHE_CAPACITY_MISS);
-        break;
-      case CONFLICT:
-        STAT_EVENT(dc->proc_id, DCACHE_CONFLICT_MISS);
-        break;
-      case COMPULSORY:
-        STAT_EVENT(dc->proc_id, DCACHE_COMPULSORY_MISS);
-        break;
-      default:
-        break;       
-    }
+
     DEBUG(dc->proc_id,
           "Filling dcache  off_path:%d addr:0x%s  :%7d index:%7d op_count:%d "
           "oldest:%lld\n",
@@ -707,17 +796,21 @@ Flag dcache_fill_line(Mem_Req* req) {
     STAT_EVENT(dc->proc_id, DCACHE_FILL);
     ASSERT(dc->proc_id, req->emitted_cycle);
     ASSERT(dc->proc_id, cycle_count >= req->emitted_cycle);
-    ASSERT(dc->proc_id, ((int)req->mlc_hit + (int)req->l1_hit) < 2); 
-    INC_STAT_EVENT(dc->proc_id, DATA_LD_CYCLES_ONPATH + req->off_path, cycle_count - req->emitted_cycle);
-    if (req->mlc_hit) {
+    ASSERT(dc->proc_id, ((int)req->mlc_hit + (int)req->l1_hit) < 2);
+    INC_STAT_EVENT(dc->proc_id, DATA_LD_CYCLES_ONPATH + req->off_path,
+                   cycle_count - req->emitted_cycle);
+    if(req->mlc_hit) {
       STAT_EVENT(dc->proc_id, DATA_LD_MLC_ACCESSES_ONPATH + req->off_path);
-      INC_STAT_EVENT(dc->proc_id, DATA_LD_MLC_CYCLES_ONPATH + req->off_path, cycle_count - req->emitted_cycle);
-    } else if (req->l1_hit) {
+      INC_STAT_EVENT(dc->proc_id, DATA_LD_MLC_CYCLES_ONPATH + req->off_path,
+                     cycle_count - req->emitted_cycle);
+    } else if(req->l1_hit) {
       STAT_EVENT(dc->proc_id, DATA_LD_L1_ACCESSES_ONPATH + req->off_path);
-      INC_STAT_EVENT(dc->proc_id, DATA_LD_L1_CYCLES_ONPATH + req->off_path, cycle_count - req->emitted_cycle);
+      INC_STAT_EVENT(dc->proc_id, DATA_LD_L1_CYCLES_ONPATH + req->off_path,
+                     cycle_count - req->emitted_cycle);
     } else {
       STAT_EVENT(dc->proc_id, DATA_LD_MEM_ACCESSES_ONPATH + req->off_path);
-      INC_STAT_EVENT(dc->proc_id, DATA_LD_MEM_CYCLES_ONPATH + req->off_path, cycle_count - req->emitted_cycle);
+      INC_STAT_EVENT(dc->proc_id, DATA_LD_MEM_CYCLES_ONPATH + req->off_path,
+                     cycle_count - req->emitted_cycle);
     }
   }
 
@@ -731,12 +824,12 @@ Flag dcache_fill_line(Mem_Req* req) {
   data->misc_state         = req->off_path | req->off_path << 1;
   data->fetched_by_offpath = USE_CONFIRMED_OFF ? req->off_path_confirmed :
                                                  req->off_path;
-  data->offpath_op_addr   = req->oldest_op_addr;
-  data->offpath_op_unique = req->oldest_op_unique_num;
-  data->fetch_cycle       = cycle_count;
-  data->onpath_use_cycle  = (req->type == MRT_DPRF || req->off_path) ?
-                             0 :
-                             cycle_count;
+  data->offpath_op_addr    = req->oldest_op_addr;
+  data->offpath_op_unique  = req->oldest_op_unique_num;
+  data->fetch_cycle        = cycle_count;
+  data->onpath_use_cycle   = (req->type == MRT_DPRF || req->off_path) ?
+                               0 :
+                               cycle_count;
 
   wp_process_dcache_fill(data, req);
 
