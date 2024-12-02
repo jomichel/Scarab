@@ -202,3 +202,5 @@ DEF_PARAM(uoc_pref                      , UOC_PREF                         , Fla
 // Only prefetch the correct path into the uop cache.
 DEF_PARAM(uoc_oracle_pref               , UOC_ORACLE_PREF                  , Flag    , Flag    , FALSE, )
 DEF_PARAM(uoc_zero_latency_pref         , UOC_ZERO_LATENCY_PREF            , Flag    , Flag    , FALSE, )
+DEF_PARAM(pref_bof_on                 , PREF_BOF_ON              , Flag   , Flag      , FALSE       ,      ) 
+DEF_PARAM(pref_bof_badscore           , PREF_BOF_BADSCORE        , uns    , uns       , 8           ,      )
