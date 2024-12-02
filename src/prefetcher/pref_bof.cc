@@ -67,7 +67,7 @@ class BOFprefetcher {
   uint64_t       cycle_count;  
   const uint64_t BAD_SCORE = PREF_BOF_BADSCORE;
   const uint64_t SCOREMAX  = 32;
-  const uint64_t ROUNDMAX  = 128;
+  const uint64_t ROUNDMAX  = 100;
   const uint64_t RRMAX    = 256;
 
  public:
@@ -109,17 +109,16 @@ class BOFprefetcher {
   void initialize_offset_list() {
     offset_list = {1,   2,   3,   4,   5,   6,   8,   9,   10,  12,  15,
                    16,  18,  20,  24,  25,  27,  30,  32,  36,  40,  45,
-                   48,  50,  54,  60,  65,  72,  75,  80,  81,  90,  96,
+                   48,  50,  54,  60, 64,  65,  72,  75,  80,  81,  90,  96,
                    100, 108, 120, 125, 128, 135, 144, 150, 160, 162, 180,
                    192, 200, 216, 225, 240, 243, 250, 256};
-    // // remove offsets greater than MXOFFSET
-    // offset_list.erase(std::remove_if(offset_list.begin(), offset_list.end(),
-    //                                  [this](uint64_t offset) {
-    //                                    return offset > MXOFFSET;
-    //                                  }),
-    //                   offset_list.end());
-    // Initialize the score table
-    for(auto offset : offset_list) {
+    // remove offsets greater than MXOFFSET
+    offset_list.erase(std::remove_if(offset_list.begin(), offset_list.end(),
+                                     [this](uint64_t offset) {
+                                       return offset > MXOFFSET;
+                                     }),
+                      offset_list.end());
+     for(auto offset : offset_list) {
       score_table[offset] = 0;
     }
   }
@@ -127,7 +126,8 @@ class BOFprefetcher {
 void train_miss(uint64_t miss_addr, uint64_t cycle_count) {
 
      
-    
+                               miss_addr = miss_addr >> LOG2(DCACHE_LINE_SIZE);
+
     if (current_offset_index >= offset_list.size()) {
       //  std::cerr << "Invalid offset index: " << current_offset_index << std::endl;
         return;
@@ -137,7 +137,7 @@ void train_miss(uint64_t miss_addr, uint64_t cycle_count) {
  
      if (RRtable.find(test_addr) != RRtable.end()    ) {
         uint64_t access_time = cycle_count - RRtable[test_addr].last_access_time;
-       std::cout << "Hit at offset " << current_offset << " with access time " << access_time << std::endl;
+       // std::cout << "Hit at offset " << current_offset << " with access time " << access_time << std::endl;
 
         if (access_time >= 100) {
             score_table[current_offset]++;
@@ -159,13 +159,11 @@ void train_miss(uint64_t miss_addr, uint64_t cycle_count) {
             best_offset = 0;
         }
         // Debugging outputs
-        for (auto& entry : score_table) {
-            std::cout << "Offset: " << entry.first << " Score: " << entry.second << std::endl;
-        }
+         
       
         active_offset = best_offset;
         best_offset = 0;
-       std::cout << "Learning phase completed with best offset: " << active_offset << std::endl;
+       // std::cout << "Learning phase completed with best offset: " << active_offset << std::endl;
         reset();
     }
 
@@ -191,6 +189,7 @@ void train_miss(uint64_t miss_addr, uint64_t cycle_count) {
       return 0;
     // if (!is_same_page(miss_addr, last_miss_addr))
     //   return 0;
+    miss_addr = miss_addr >> LOG2(DCACHE_LINE_SIZE);
      return miss_addr + (active_offset);
   }
 
@@ -248,11 +247,11 @@ void pref_bof_ul1_miss(uns8 proc_id, Addr lineAddr, Addr loadPC,
     lineAddr);
   if(pref_addr != 0) {
     // Issue prefetch
-    // if(!pref_addto_ul1req_queue(
-    //      proc_id, pref_addr,
-    //      bof_prefetchers_array.bof_hwp_core_ul1[proc_id].hwp_info->id)) {
-    //   std::cout << "Prefetch queue is full\n";
-    // }
+    if(!pref_addto_ul1req_queue(
+         proc_id, pref_addr,
+         bof_prefetchers_array.bof_hwp_core_ul1[proc_id].hwp_info->id)) {
+      // std::cout << "Prefetch queue is full\n";
+    }
   }
 }
 
@@ -271,12 +270,12 @@ void pref_bof_umlc_miss(uns8 proc_id, Addr lineAddr, Addr loadPC,
   Addr pref_addr = bof_prefetchers_array.bof_hwp_core_umlc[proc_id].getPrefAddr(
     lineAddr);
   if(pref_addr != 0) {
-    // // Issue prefetch
-    // if(!pref_addto_umlc_req_queue(
-    //      proc_id, pref_addr,
-    //      bof_prefetchers_array.bof_hwp_core_umlc[proc_id].hwp_info->id)) {
-    //   std::cout << "Prefetch queue is full\n";
-    // }
+    // Issue prefetch
+    if(!pref_addto_umlc_req_queue(
+         proc_id, pref_addr,
+         bof_prefetchers_array.bof_hwp_core_umlc[proc_id].hwp_info->id)) {
+      // std::cout << "Prefetch queue is full\n";
+    }
   }
 }
 
